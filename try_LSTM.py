@@ -251,14 +251,13 @@ with graph.as_default():
                                   saved_sample_state.assign(sample_state)]):
         sample_prediction = tf.nn.softmax(tf.nn.xw_plus_b(sample_output, w, b))
 
-import tensorflow as tf
 
 num_steps = 7001
 summary_frequency = 100
 
 with tf.Session(graph=graph) as session:
   # tf.global_variables_initializer().run()
-  tf.initialize_all_variables().run()
+  tf.initialize_all_variables().run() #add by xutao
   # init.run()
   print('Initialized')
   mean_loss = 0
