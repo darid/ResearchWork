@@ -8,6 +8,11 @@ import shutil
 
 workdir = '/home/darid/ResearchWork/TST Fall detection database/'
 
+###
+# input work directory path
+# ouput current path and folder lists
+###
+
 def findNextDir(path):
     os.chdir(path)
     curdir= str(os.getcwd())
@@ -43,5 +48,5 @@ for f in os.listdir(workdir):
                                 print s5_f+" got it"
                             else:
                                 print t4_dir+'/'+s5_f+ " delete it"
-                                # delete file foldo
+                                # delete file folders
                                 shutil.rmtree(t4_dir+'/'+s5_f)
