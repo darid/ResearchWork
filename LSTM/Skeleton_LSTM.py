@@ -1,6 +1,7 @@
 
 import tensorflow as tf
-from tensorflow.python.ops import rnn, rnn_cell
+from tensorflow.python.ops import rnn #, rnn_cell
+from tensorflow.contrib.rnn import RNNCell
 import numpy as np
 import matplotlib.pyplot as plt
 from tensorflow.examples.tutorials.mnist import input_data
@@ -22,21 +23,40 @@ num = 0
 ls_dir = os.listdir(work_train)
 next_fn = deque(ls_dir, len(ls_dir))
 
+
+
+# read all the data in a list : train_data
+# train_data = []
+# train_label = []
+# for i in range(0, len(ls_dir)):
+#      train_data.append(PrepareData.importData(work_train+'/'+ next_fn[i])[0])
+#      train_label.append(PrepareData.importData(work_train+'/'+ next_fn[i])[1])
+#
+#
+#
+# next_train_data = deque(train_data, len(train_data))
+
 def Next_data():
+    # next_batch = next_train_data.rotate(-75*70)
+    # return next_batch
     next_fn.rotate(-1)
     return PrepareData.importData(work_train+'/'+ next_fn[0])
 
-# print len(Next_data()[0])
+
+
+
+
 
 # Parameters
-learning_rate = 0.000027
-training_iters = 30000
+learning_rate = 0.000026
+training_iters = 10000
 batch_size = 1
 display_step = 100
 
+print learning_rate
 # Network Parameters
-n_input = 75 # data input  shape: 25(joints)*3(dimension)*80(frame)
-n_steps = 80 # timesteps
+n_input = 25 # data input  shape: 25(joints)*3(dimension)*80(frame)
+n_steps = 60 # timesteps
 n_hidden = 128 # hidden layer num of features
 n_classes = 8 # MNIST total classes (0-9 digits)
 
@@ -68,15 +88,17 @@ def RNN(x, weights, biases):
     x = tf.reshape(x, [-1, n_input])
     # print tf.shape(x)
     # Split to get a list of 'n_steps' tensors of shape (batch_size, n_input)
-    x = tf.split(0, n_steps, x)
+    x = tf.split(x, n_steps, 0)
     # print tf.shape(x)
     # Define a lstm cell with tensorflow
-    lstm_cell = rnn_cell.BasicLSTMCell(n_hidden, forget_bias=1.0)
+    lstm_cell = tf.contrib.rnn.LSTMCell(n_hidden,forget_bias=1.0)
+    # lstm_cell = RNNCell.BasicLSTMCell(n_hidden, forget_bias=1.0)
 
-    lsmt_layers = tf.nn.rnn_cell.MultiRNNCell([lstm_cell] * 2)
-
+    # lsmt_layers = tf.nn.rnn_cell.MultiRNNCell([lstm_cell]*2)
+    lsmt_layers = tf.contrib.rnn.MultiRNNCell([lstm_cell]*2)
     # Get lstm cell output
-    outputs, states = rnn.rnn(lsmt_layers, x, dtype=tf.float32)
+    # outputs, states = rnn.rnn(lsmt_layers, x, dtype=tf.float32)
+    outputs, states = tf.contrib.rnn.static_rnn(lsmt_layers, x, dtype=tf.float32)
 
     # Linear activation, using rnn inner loop last output
     return tf.matmul(outputs[-1], weights['out']) + biases['out']
@@ -85,10 +107,14 @@ def RNN(x, weights, biases):
 pred = RNN(x, weights, biases)
 
 # Define loss and optimizer
-cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(pred, y))
+# cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(pred, y))
+cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=y)) #xutao 3/13/2017
 # optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 optimizer = tf.train.RMSPropOptimizer(learning_rate, 0.9).minimize(cost)
+# optimizer = tf.train.MomentumOptimizer(learning_rate,0.9).minimize(cost)
+# optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(cost)
 # Evaluate model
+results = tf.argmax(pred,1)
 correct_pred = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
@@ -108,8 +134,20 @@ with tf.Session() as sess:
         # batch_x = batch_x.reshape((batch_size, n_steps, n_input))
         # # Run optimization op (backprop)
     pn = 0
+    i = 0
     while step * batch_size < training_iters:
+
         batch_x, batch_y = Next_data()
+
+        # input data stream
+        # if i >= len(train_data):
+        #     i=0
+        #
+        # batch_x = train_data[i]
+        #
+        # batch_y = train_label[i]
+
+
         batch_x = np.asarray(batch_x)
         # Reshape data to get 28 seq of 28 elements
         batch_x = batch_x.reshape((batch_size, n_steps, n_input))
@@ -132,6 +170,7 @@ with tf.Session() as sess:
                   "{:.5f}".format(ac)
             pn = 0
         step += 1
+        i += 1
     print "Optimization Finished!"
 # #
 #     # Calculate accuracy for 128 mnist test images
@@ -154,10 +193,12 @@ with tf.Session() as sess:
         test_x = test_x.reshape((batch_size, n_steps, n_input))
         # Run optimization op (backprop)
         # test = sess.run(optimizer, feed_dict={x: test_x, y: test_y})
-
+        re = sess.run(results,feed_dict={x: test_x})
+        print re
+        print test_y
         pr = sess.run(correct_pred, feed_dict={x: test_x, y: test_y})
+        print pr
         pr_s = str(pr[0])
-        print pr_s
         if pr_s == "True":
             pn = pn + 1
 
